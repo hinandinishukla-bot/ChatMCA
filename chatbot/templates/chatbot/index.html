@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatMCA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .message {
+            max-width: 80%;
+            border-radius: 1.25rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #3b82f6;
+            color: white;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            align-self: flex-start;
+        }
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col h-[80vh] m-4">
+        <header class="bg-blue-600 text-white p-4 rounded-t-2xl shadow-md">
+            <h1 class="text-xl font-semibold text-center">ChatMCA</h1>
+        </header>
+        
+        <!-- Chat Area -->
+        <div id="chat-container" class="flex-1 p-6 overflow-y-auto flex flex-col space-y-3">
+            <!-- Messages will be appended here -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 bg-gray-50 rounded-b-2xl border-t border-gray-200">
+            <div class="relative flex items-center">
+                <input type="text" id="message-input" placeholder="Message ChatMCA..."
+                       class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow pr-12">
+                <button id="send-button" class="absolute right-2.5 bg-blue-600 text-white p-2.5 rounded-full hover:bg-blue-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 00.185.748A.999.999 0 003 18h14a1 1 0 00.596-1.815l-7-14z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+
+        // Initial welcome message
+        appendMessage('bot', 'Hello! I am ChatMCA. How can I assist you today?');
+
+        function appendMessage(sender, text) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'max-w-xs', 'p-3', 'rounded-xl', 'text-white', 'shadow', 'self-start', 'whitespace-pre-wrap');
+            
+            if (sender === 'user') {
+                messageElement.classList.add('bg-blue-500', 'ml-auto', 'self-end', 'text-right');
+                messageElement.innerHTML = `<span class="whitespace-pre-wrap">${text}</span>`;
+            } else {
+                messageElement.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'self-start');
+                messageElement.innerHTML = `<span class="whitespace-pre-wrap">${text}</span>`;
+            }
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const userMessage = messageInput.value.trim();
+            if (userMessage === '') return;
+
+            // Display user message and clear input
+            appendMessage('user', userMessage);
+            messageInput.value = '';
+
+            // Add loading indicator
+            const loadingMessage = document.createElement('div');
+            loadingMessage.classList.add('message', 'bot-message', 'bg-gray-200', 'p-3', 'rounded-xl', 'flex', 'space-x-1');
+            loadingMessage.innerHTML = `<div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>`;
+            chatContainer.appendChild(loadingMessage);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userMessage })
+                });
+
+                // Remove loading indicator
+                chatContainer.removeChild(loadingMessage);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    appendMessage('bot', data.response);
+                } else {
+                    const errorData = await response.json();
+                    appendMessage('bot', `Error: ${errorData.details || 'An unknown error occurred.'}`);
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                // Remove loading indicator
+                chatContainer.removeChild(loadingMessage);
+                appendMessage('bot', 'Error connecting to the server. Please try again.');
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
